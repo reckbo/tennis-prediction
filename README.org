@@ -1,0 +1,196 @@
+#+PROPERTY: header-args:python :session *python*
+
+* Activate Virtualenv
+#+NAME: virtualenv
+#+BEGIN_SRC sh
+  pipenv --venv | cut -d/ -f5
+#+END_SRC
+
+#+RESULTS: virtualenv
+: tennis-prediction-6rjbBq-r
+
+#+BEGIN_SRC elisp :session venv-scratch :var virtualenv=virtualenv :results none
+  (pyvenv-workon virtualenv)
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+  import readline
+  import sys
+  print('\n'.join(sys.path))
+#+END_SRC
+
+#+RESULTS:
+: /home/reckbo/.virtualenvs/tennis-prediction-6rjbBq-r/lib/python36.zip
+: /home/reckbo/.virtualenvs/tennis-prediction-6rjbBq-r/lib/python3.6
+: /home/reckbo/.virtualenvs/tennis-prediction-6rjbBq-r/lib/python3.6/lib-dynload
+: /home/reckbo/.pyenv/versions/3.6.6/lib/python3.6
+: /home/reckbo/.virtualenvs/tennis-prediction-6rjbBq-r/lib/python3.6/site-packages
+
+
+* Load Libraries and Define Helper Functions
+#+BEGIN_SRC python :results silent
+  import os.path
+  import pandas as pd
+  from tabulate import tabulate
+  import matplotlib.pyplot as plt
+
+  def show_org_table(df):
+    return tabulate(df, headers="keys", tablefmt="orgtbl", showindex=False)
+#+END_SRC
+
+* Load Data
+#+BEGIN_SRC python :results silent
+  TENNIS_ATP_ROOT = "./tennis_atp/"
+
+  def csv(year):
+    return os.path.join(TENNIS_ATP_ROOT, 'atp_matches_' + str(year) + '.csv')
+
+  def read_csvs(years):
+    return pd.concat([pd.read_csv(csv(year)) for year in years])
+
+  df = read_csvs(list(range(1990, 2018 + 1)))
+  df.tourney_date = pd.to_datetime(df.tourney_date, format="%Y%m%d")
+  #df.tourney_date = df.tourney_date.dt.date
+  df3 = df[df.best_of == 3]
+  df5 = df[df.best_of == 5]
+#+END_SRC
+
+* Inspect Data
+#+BEGIN_SRC python :results output
+  df.info()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+<class 'pandas.core.frame.DataFrame'>
+Int64Index: 94200 entries, 0 to 1415
+Data columns (total 49 columns):
+tourney_id            94200 non-null object
+tourney_name          94200 non-null object
+surface               94082 non-null object
+draw_size             94200 non-null int64
+tourney_level         94200 non-null object
+tourney_date          94200 non-null datetime64[ns]
+match_num             94200 non-null int64
+winner_id             94200 non-null int64
+winner_seed           38108 non-null float64
+winner_entry          11050 non-null object
+winner_name           94200 non-null object
+winner_hand           94184 non-null object
+winner_ht             88898 non-null float64
+winner_ioc            94200 non-null object
+winner_age            94100 non-null float64
+winner_rank           91194 non-null float64
+winner_rank_points    91194 non-null float64
+loser_id              94200 non-null int64
+loser_seed            20669 non-null float64
+loser_entry           18465 non-null object
+loser_name            94200 non-null object
+loser_hand            94157 non-null object
+loser_ht              85567 non-null float64
+loser_ioc             94200 non-null object
+loser_age             93976 non-null float64
+loser_rank            90007 non-null float64
+loser_rank_points     90007 non-null float64
+score                 94198 non-null object
+best_of               94200 non-null int64
+round                 94200 non-null object
+minutes               78745 non-null float64
+w_ace                 81281 non-null float64
+w_df                  81281 non-null float64
+w_svpt                81281 non-null float64
+w_1stIn               81281 non-null float64
+w_1stWon              81281 non-null float64
+w_2ndWon              81281 non-null float64
+w_SvGms               81281 non-null float64
+w_bpSaved             81281 non-null float64
+w_bpFaced             81281 non-null float64
+l_ace                 81281 non-null float64
+l_df                  81281 non-null float64
+l_svpt                81281 non-null float64
+l_1stIn               81281 non-null float64
+l_1stWon              81281 non-null float64
+l_2ndWon              81281 non-null float64
+l_SvGms               81281 non-null float64
+l_bpSaved             81281 non-null float64
+l_bpFaced             81281 non-null float64
+dtypes: datetime64[ns](1), float64(29), int64(5), object(14)
+memory usage: 35.9+ MB
+#+end_example
+
+#+BEGIN_SRC python :results table
+  show_org_table(df.iloc[:5])
+#+END_SRC
+
+#+RESULTS:
+|          | tourney_id | tourney_name | surface | draw_size | tourney_level       | tourney_date | match_num | winner_id | winner_seed | winner_entry           | winner_name | winner_hand | winner_ht | winner_ioc | winner_age | winner_rank | winner_rank_points | loser_id | loser_seed | loser_entry     | loser_name | loser_hand | loser_ht | loser_ioc | loser_age | loser_rank | loser_rank_points | score | best_of | round | minutes | w_ace | w_df | w_svpt | w_1stIn | w_1stWon | w_2ndWon | w_SvGms | w_bpSaved | w_bpFaced | l_ace | l_df | l_svpt | l_1stIn | l_1stWon | l_2ndWon | l_SvGms | l_bpSaved | l_bpFaced |
+|----------+------------+--------------+---------+-----------+---------------------+--------------+-----------+-----------+-------------+------------------------+-------------+-------------+-----------+------------+------------+-------------+--------------------+----------+------------+-----------------+------------+------------+----------+-----------+-----------+------------+-------------------+-------+---------+-------+---------+-------+------+--------+---------+----------+----------+---------+-----------+-----------+-------+------+--------+---------+----------+----------+---------+-----------+-----------|
+| 1990-360 | Casablanca | Clay         |      32 | A         | 1990-03-05 00:00:00 |            1 |    101649 |         1 |         nan | Guillermo Perez Roldan | R           |         178 | ARG       |    20.3723 |         37 |         528 |             101889 |      nan |          Q | Todd Woodbridge | R          |        178 | AUS      |    18.924 |       131 |        192 | 7-6 6-1           |     3 | R32     |   nan |     nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |       nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |           |
+| 1990-360 | Casablanca | Clay         |      32 | A         | 1990-03-05 00:00:00 |            2 |    101735 |       nan |         nan | Richard Fromberg       | R           |         196 | AUS       |    19.8522 |        104 |         253 |             101723 |      nan |          Q | Magnus Larsson  | R          |        193 | SWE      |   19.9452 |       150 |        158 | 6-2 4-6 6-2       |     3 | R32     |   nan |     nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |       nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |           |
+| 1990-360 | Casablanca | Clay         |      32 | A         | 1990-03-05 00:00:00 |            3 |    100942 |       nan |         nan | Thierry Tulasne        | R           |         178 | FRA       |    26.6475 |        122 |         209 |             101900 |      nan |        nan | Nicklas Kulti   | R          |        190 | SWE      |   18.8693 |       157 |        152 | 7-5 6-0           |     3 | R32     |   nan |     nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |       nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |           |
+| 1990-360 | Casablanca | Clay         |      32 | A         | 1990-03-05 00:00:00 |            4 |    101686 |         8 |         nan | Franco Davin           | L           |         173 | ARG       |    20.1451 |         87 |         275 |             101154 |      nan |        nan | Simon Youl      | R          |        185 | AUS      |   24.6762 |       107 |        247 | 6-2 6-1           |     3 | R32     |   nan |     nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |       nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |           |
+| 1990-360 | Casablanca | Clay         |      32 | A         | 1990-03-05 00:00:00 |            5 |    100536 |       nan |         nan | Fernando Luna          | R           |         175 | ESP       |    31.8631 |        132 |         191 |             101337 |        4 |        nan | Martin Strelba  | R          |        190 | CZE      |   22.9541 |        57 |        384 | 6-1 6-0           |     3 | R32     |   nan |     nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |       nan |   nan |  nan |    nan |     nan |      nan |      nan |     nan |       nan |           |
+
+#+BEGIN_SRC python :results table
+  show_org_table(df.describe())
+#+END_SRC
+
+#+RESULTS:
+|         | draw_size | match_num | winner_id | winner_seed | winner_ht | winner_age | winner_rank | winner_rank_points | loser_id | loser_seed | loser_ht | loser_age | loser_rank | loser_rank_points | best_of | minutes |   w_ace |    w_df |  w_svpt | w_1stIn | w_1stWon | w_2ndWon | w_SvGms | w_bpSaved | w_bpFaced |  l_ace |    l_df |  l_svpt | l_1stIn | l_1stWon | l_2ndWon | l_SvGms | l_bpSaved | l_bpFaced |
+|---------+-----------+-----------+-----------+-------------+-----------+------------+-------------+--------------------+----------+------------+----------+-----------+------------+-------------------+---------+---------+---------+---------+---------+---------+----------+----------+---------+-----------+-----------+--------+---------+---------+---------+----------+----------+---------+-----------+-----------|
+|   94200 |     94200 |     94200 |     38108 |       88898 |     94100 |      91194 |       91194 |              94200 |    20669 |      85567 |    93976 |     90007 |      90007 |             94200 |   78745 |   81281 |   81281 |   81281 |   81281 |   81281 |    81281 |    81281 |   81281 |     81281 |     81281 |  81281 |   81281 |   81281 |   81281 |    81281 |    81281 |   81281 |     81281 |           |
+|   52.38 |   41.9611 |    103338 |   6.76241 |     185.297 |   25.5796 |    82.1619 |      1340.4 |             103500 |  8.11389 |     184.85 |  25.6698 |   121.433 |    836.844 |           3.44163 | 101.988 | 6.41221 | 2.74055 | 77.8141 | 47.2055 | 35.5578 |  16.7879 |  12.2496 |  3.5327 |    5.1826 |   4.73619 | 3.5066 | 80.6104 | 47.6003 | 31.5703 |  15.0036 |   12.059 | 4.80642 |    8.7581 |           |
+| 37.6593 |   65.6995 |   3093.55 |   6.01056 |     6.64803 |   3.62198 |    137.454 |      1675.2 |            4161.63 |  6.51408 |    6.59124 |  3.75804 |   182.588 |     939.67 |            0.8296 | 38.6812 | 5.25304 | 2.36896 | 29.5039 | 19.1617 |  13.801 |  7.01608 |  4.14616 | 3.08402 |   4.06167 |   4.57792 | 2.6256 | 29.4453 | 19.3242 | 14.3914 |  7.25147 |  4.15891 | 3.26884 |   4.12048 |           |
+|       4 |         1 |    100284 |         1 |         160 |   14.3518 |          1 |           1 |             100282 |        1 |        160 |  14.5133 |         1 |          0 |                 3 |       0 |       0 |       0 |       0 |       0 |       0 |        0 |        0 |       0 |         0 |         0 |      0 |       0 |       0 |       0 |        0 |        0 |      -6 |         0 |           |
+|      32 |         8 |    101924 |         2 |         180 |   22.9021 |         18 |         496 |             101900 |        4 |        180 |  22.9377 |        37 |      365.5 |                 3 |      74 |       3 |       1 |      56 |      33 |      26 |       12 |        9 |       1 |         2 |         2 |      2 |      59 |      34 |      21 |       10 |        9 |       2 |         6 |           |
+|      32 |        21 |    103103 |         5 |         185 |   25.3634 |         46 |         832 |             103096 |        6 |        185 |  25.4949 |        71 |        615 |                 3 |      95 |       5 |       2 |      72 |      44 |      33 |       16 |       11 |       3 |         4 |         4 |      3 |      75 |      44 |      29 |       14 |       11 |       4 |         8 |           |
+|      64 |        39 |    104312 |         8 |         190 |   28.0082 |         90 |        1505 |             104327 |       11 |        188 |  28.2108 |       121 |        982 |                 3 |     123 |       9 |       4 |      94 |      57 |      42 |       21 |       15 |       5 |         7 |         7 |      5 |      96 |      58 |      39 |       19 |       15 |       7 |        11 |           |
+|     128 |       701 |    208029 |        35 |         208 |   42.7926 |       2101 |       16950 |             207973 |       35 |        208 |   46.037 |      2159 |      16950 |                 5 |    1146 |     113 |      23 |     491 |     361 |     292 |       82 |       90 |      24 |        34 |       103 |     26 |     489 |     328 |     284 |      101 |       91 |      28 |        35 |           |
+
+#+BEGIN_SRC python :results silent
+  df.hist(bins=range(0,70), figsize=(25,15))
+  plt.show()
+#+END_SRC
+
+#+BEGIN_SRC python :results silent
+  bins=50
+  df3.filter(regex="^l\_*").hist(bins=bins, figsize=(25,15))
+  plt.show()
+#+END_SRC
+
+#+BEGIN_SRC python :results silent
+  df3.l_2ndWon.hist(bins=range(1,50), figsize=(25,15))
+  plt.show()
+#+END_SRC
+
+Get a visual of missing data:
+
+#+BEGIN_SRC python :results silent
+  import missingno as msno
+  msno.matrix(df5)
+  plt.show()
+#+END_SRC
+
+* Make Training and Test Sets
+  
+
+#+BEGIN_SRC python :results output
+  def split_train_test(dfin, test_ratio):
+    train_ratio = 1 - test_ratio
+    max_year = max(df3.tourney_date.dt.year)
+    min_year = min(df3.tourney_date.dt.year)
+    split_year = int((max_year - min_year) * train_ratio)
+    train_years = range(min_year, min_year + split_year)
+    test_years = range(min_year + split_year, max_year + 1)
+    return train_years, test_years
+    #return dfin[:train_set_size], dfin[train_set_size:]
+
+  df_train, df_test = split_train_test(df3, 0.2)
+
+  print(list(df_train))
+  print(list(df_test))
+#+END_SRC
+
+#+RESULTS:
+: [1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011]
+: [2012, 2013, 2014, 2015, 2016, 2017, 2018]
